@@ -1,0 +1,30 @@
+"""
+The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+"""
+scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
+
+type LogoutUserMutationResponse {
+  success: Boolean!
+  message: String
+}
+
+type Mutation {
+  """Authentication mutation, logs out user."""
+  logoutUser: LogoutUserMutationResponse!
+}
+
+"""An object with a Globally Unique ID"""
+interface Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+}
+
+type Query {
+  me: User
+}
+
+type User implements Node {
+  id: GlobalID!
+  username: String!
+  email: String!
+}

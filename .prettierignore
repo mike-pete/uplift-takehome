@@ -1,0 +1,5 @@
+package.json
+package-lock.json
+*/src/generated/
+__generated__
+*/build/

@@ -1,0 +1,165 @@
+name: backend-node
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'node-server/**/*'
+
+jobs:
+  deps-and-codegen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+      - name: Cache node_modules
+        uses: actions/cache@main
+        id: cache-node
+        env:
+          cache-name: cache-node
+        with:
+          path: |
+            node_modules
+            frontend/node_modules
+            node-server/node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        # Always run this, so it throws if the package and lockfile don't match
+        run: npm ci
+      - name: GQL Codegen
+        run: cd node-server && npm run gql-codegen
+      - uses: actions/upload-artifact@v2-preview
+        with:
+          name: generated
+          path: './node-server/src/generated'
+
+  build:
+    runs-on: ubuntu-latest
+    needs: deps-and-codegen
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+      - name: Restore dependencies
+        uses: actions/cache@main
+        env:
+          cache-name: cache-node
+        with:
+          path: |
+            node_modules
+            frontend/node_modules
+            node-server/node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Download GQL codegen
+        uses: actions/download-artifact@v2-preview
+        with:
+          name: generated
+          path: './node-server/src/generated'
+      - run: cd node-server && npm run build
+
+  test:
+    runs-on: ubuntu-latest
+    needs: deps-and-codegen
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+      - name: Restore dependencies
+        uses: actions/cache@main
+        env:
+          cache-name: cache-node
+        with:
+          path: |
+            node_modules
+            frontend/node_modules
+            node-server/node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Download GQL codegen
+        uses: actions/download-artifact@v2-preview
+        with:
+          name: generated
+          path: './node-server/src/generated'
+      - run: cd node-server && npm run jest
+
+  eslint:
+    runs-on: ubuntu-latest
+    needs: deps-and-codegen
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+      - name: Restore dependencies
+        uses: actions/cache@main
+        env:
+          cache-name: cache-node
+        with:
+          path: |
+            node_modules
+            frontend/node_modules
+            node-server/node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Download GQL codegen
+        uses: actions/download-artifact@v2-preview
+        with:
+          name: generated
+          path: './node-server/src/generated'
+      - run: cd node-server && npm run eslint:check
+
+  prettier:
+    runs-on: ubuntu-latest
+    needs: deps-and-codegen
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+      - name: Restore dependencies
+        uses: actions/cache@main
+        env:
+          cache-name: cache-node
+        with:
+          path: |
+            node_modules
+            frontend/node_modules
+            node-server/node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+      - run: cd node-server && npm run prettier:check
+
+  # audit:
+  #   runs-on: ubuntu-latest
+  #   needs: deps-and-codegen
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Use Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '18.x'
+  #     - name: Restore dependencies
+  #       uses: actions/cache@main
+  #       env:
+  #         cache-name: cache-node
+  #       with:
+  #         path: |
+  #           node_modules
+  #           frontend/node_modules
+  #           node-server/node_modules
+  #         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+  #     - run: npm audit --omit dev

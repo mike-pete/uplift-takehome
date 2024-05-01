@@ -1,0 +1,415 @@
+# Jobs to trigger on schedule
+# TODO: rename this file on main
+# TODO: consider splitting this up, but nice to schedule these periodically
+# and keep the rest on PRs
+name: Checks for Windows, Linux and Mac
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every Wednesday 1pm UTC
+    - cron: '0 13 * * 3'
+env:
+  DOTENV_LOCATION: .env.pytest
+  PYTHON_VERSION: 3.11
+
+jobs:
+  runnable:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+      - name: check should run
+        id: runnable
+        run: |
+          git_origin=$(git remote get-url origin)
+          if [ $git_origin != "https://github.com/uplift-interview/uplift-interview" ]; then
+            echo $git_origin
+            exit 1
+          fi
+
+  docker-ubuntu-build:
+    runs-on: ubuntu-latest
+    needs: runnable
+    timeout-minutes: 10
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+
+      - name: docker build
+        run: |
+          make python-start ARGS='-d --build'
+          echo "waiting..."
+          npx wait-on "http-get://127.0.0.1:8000/admin" -t 20000
+          echo "admin started"
+
+      - name: python lint
+        run: make python-lint
+
+      - name: python test
+        run: make python-test
+
+      - name: python flake8
+        run: make python-flake8-and-manage-py-check
+
+      - name: python migrations-and-fixtures
+        run: make python-migrations-and-fixtures
+
+      - name: python schema
+        run: make python-schema
+
+      - name: python security check
+        run: make python-security-check
+
+  docker-macos-build:
+    runs-on: macos-latest
+    needs: runnable
+    timeout-minutes: 30
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+
+      - uses: docker-practice/actions-setup-docker@master
+
+      - name: docker build
+        run: |
+          make python-start ARGS='-d'
+          echo "waiting..."
+          npx wait-on "http-get://127.0.0.1:8000/admin" -t 40000
+          echo "admin started"
+
+      - name: python lint
+        run: make python-lint
+
+      - name: python test
+        run: make python-test
+
+      - name: python flake8
+        run: make python-flake8-and-manage-py-check
+
+      - name: python migrations-and-fixtures
+        run: make python-migrations-and-fixtures
+
+      - name: python schema
+        run: make python-schema
+
+      - name: python security check
+        run: make python-security-check
+
+  windows-python-build:
+    runs-on: windows-latest
+    needs: runnable
+    timeout-minutes: 10
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install poetry
+        run: pip install poetry
+
+      - name: Cache dependencies
+        uses: actions/cache@main
+        id: cache-poetry
+        env:
+          cache-name: cache-poetry
+        with:
+          path: server/.venv
+          key: ${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ env.cache-name }}-${{ hashFiles('server/poetry.lock') }}
+
+      - name: Install dependencies
+        if: steps.cache-poetry.outputs.cache-hit != 'true'
+        run: |
+          cd server
+          poetry install
+
+      - uses: ikalnytskyi/action-setup-postgres@v2
+        with:
+          username: postgres
+          password: postgres
+          database: uplifty
+        id: postgres
+
+  windows-pytest:
+    runs-on: windows-latest
+    needs: windows-python-build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install poetry
+        run: pip install poetry
+
+      - name: Restore dependencies
+        uses: actions/cache@main
+        env:
+          cache-name: cache-poetry
+        with:
+          path: server/.venv
+          key: ${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ env.cache-name }}-${{ hashFiles('server/poetry.lock') }}
+
+      - name: pytest
+        env:
+          DATABASE_URL: ${{ steps.postgres.outputs.connection-uri }}
+        run: |
+          cp .env.example.docker .env
+          cd server
+          poetry run pytest -n auto --cache-clear
+          poetry run pytest --dead-fixtures
+
+  windows-isort:
+    runs-on: windows-latest
+    needs: windows-python-build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install poetry
+        run: pip install poetry
+      - name: Restore dependencies
+        uses: actions/cache@main
+        env:
+          cache-name: cache-poetry
+        with:
+          path: server/.venv
+          key: ${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ env.cache-name }}-${{ hashFiles('server/poetry.lock') }}
+      - run: |
+          cd server
+          poetry run isort --check-only .
+
+  windows-migrations-and-fixtures:
+    runs-on: windows-latest
+    needs: windows-python-build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install poetry
+        run: pip install poetry
+      - name: Restore dependencies
+        uses: actions/cache@main
+        env:
+          cache-name: cache-poetry
+        with:
+          path: server/.venv
+          key: ${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ env.cache-name }}-${{ hashFiles('server/poetry.lock') }}
+      - run: |
+          cd server
+          poetry run python manage.py migrate
+          poetry run python manage.py makemigrations --check
+
+  windows-black:
+    runs-on: windows-latest
+    needs: windows-python-build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install poetry
+        run: pip install poetry
+      - name: Restore dependencies
+        uses: actions/cache@main
+        env:
+          cache-name: cache-poetry
+        with:
+          path: server/.venv
+          key: ${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ env.cache-name }}-${{ hashFiles('server/poetry.lock') }}
+      - run: |
+          cd server
+          poetry run black --check .
+
+  windows-schema:
+    runs-on: windows-latest
+    needs: windows-python-build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install poetry
+        run: pip install poetry
+      - name: Restore dependencies
+        uses: actions/cache@main
+        env:
+          cache-name: cache-poetry
+        with:
+          path: server/.venv
+          key: ${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ env.cache-name }}-${{ hashFiles('server/poetry.lock') }}
+      - name: generate introspection schema
+        run: |
+          cd server
+          poetry run python manage.py export_schema uplifty.schema:schema > schema.graphql
+      - name: check no changes to schema.graphql
+        run: |
+          git status --porcelain server/schema.graphql
+          if (0 -ne $LastExitCode) {
+            git status --porcelain server/schema.graphql
+            git diff --exit-code server/schema.graphql
+            echo "Found changes to server/schema.graphql. Please check them in."
+            exit 1
+          }
+
+  windows-flake8-and-manage-py-check:
+    runs-on: windows-latest
+    needs: windows-python-build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install poetry
+        run: pip install poetry
+      - name: Restore dependencies
+        uses: actions/cache@main
+        env:
+          cache-name: cache-poetry
+        with:
+          path: server/.venv
+          key: ${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ env.cache-name }}-${{ hashFiles('server/poetry.lock') }}
+      - name: Install dependencies
+        run: |
+          cd server
+          poetry install
+      - run: |
+          cd server
+          poetry run flake8 .
+          poetry run python manage.py check
+
+  windows-python-security-check:
+    runs-on: windows-latest
+    needs: windows-python-build
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install poetry
+        run: pip install poetry
+      - name: Install dependencies
+        run: |
+          cd server
+          poetry install
+      - run: |
+          cd server
+          poetry run safety check -i 51457 -i 51499
+          poetry run bandit -r uplifty/
+
+  windows-wsl-backend:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    needs: runnable
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+
+      - name: Setup WSL
+        uses: Vampire/setup-wsl@v1
+        with:
+          distribution: Ubuntu-20.04
+
+      - shell: wsl-bash {0}
+        name: install python, postgres, run backend checks
+        run: |
+          apt -y update
+          apt install -y postgresql postgresql-contrib
+          sudo service postgresql start
+          sudo -u postgres createdb uplifty
+          sudo -u postgres psql -U postgres -d uplifty -c "ALTER USER postgres PASSWORD 'postgres';"
+
+          git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+          echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bash_profile
+          echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bash_profile
+          echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bash_profile
+          source ~/.bash_profile
+          apt -y update
+          apt -y install make build-essential libssl-dev zlib1g-dev \
+            libbz2-dev libreadline-dev libsqlite3-dev wget curl \
+            libncursesw5-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+          pyenv install 3.11
+          pyenv global 3.11
+          apt -y install python3-pip
+          pip3 install poetry
+          cd server
+          poetry install
+
+          echo "run pytest"
+
+          cp .env.pytest ../.env
+          poetry run pytest -n auto --cache-clear
+          poetry run pytest --dead-fixtures
+
+          echo "run migrations and fixtures"
+
+          cp ../.env.example ../.env
+          poetry run python manage.py migrate
+          poetry run python manage.py makemigrations --check
+
+          echo "run flake8 and manage.py check"
+          poetry run flake8 .
+          poetry run python ./manage.py check
+
+          echo "run black"
+          poetry run black --check .
+
+          echo "run isort"
+          poetry run isort --check-only .
+
+          echo "run schema check"
+          # generate introspection schema
+          poetry run python manage.py export_schema uplifty.schema:schema > schema.graphql
+          # check no changes to schema.graphql
+          if [[ `git status --porcelain server/schema.graphql` ]]; then
+            git status --porcelain server/schema.graphql
+            git diff --exit-code server/schema.graphql
+            echo "Found changes to server/schema.graphql. Please check them in."
+            exit 1
+          fi
+
+          echo "run python-security-check"
+          poetry run safety check -i 51457 -i 51499
+          poetry run bandit -r uplifty/
+
+  # windows-wsl-frontend:
+  #   runs-on: windows-latest
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v3
+
+  #     - name: Setup WSL
+  #       uses: Vampire/setup-wsl@v1
+  #       with:
+  #         distribution: Ubuntu-20.04
