@@ -138,7 +138,7 @@ The task is to build a simple card game. The designs are in Figma, you can see [
 ### Requirements
 
 - Node 16+ (tested on 18.12.1)
-- Yarn 1+ (tested on 1.19.1)
+- ~~Yarn 1+ (tested on 1.19.1)~~ the Docker build is using npm
 
 
 ### Getting Started with Docker

@@ -1,0 +1,7 @@
+- [x] add prettier-plugin-tailwindcss
+- [ ] layout
+- [ ] tests
+- [ ] animations
+- [ ] sounds
+- [ ] deploy
+- [ ] explain code

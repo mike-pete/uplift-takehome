@@ -1,3 +1,42 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@font-face {
+  font-family: 'AlfaSlab';
+  src:
+    local('AlfaSlab'),
+    url('./assets/fonts/Alfa_Slab_One/AlfaSlabOne-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'CourierPrime';
+  src:
+    local('CourierPrime'),
+    url('./assets/fonts/Courier_Prime/CourierPrime-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'CourierPrime';
+  src:
+    local('CourierPrime'),
+    url('./assets/fonts/Courier_Prime/CourierPrime-Bold.ttf') format('truetype');
+  font-weight: bold;
+}
+
+@font-face {
+  font-family: 'CourierPrime';
+  src:
+    local('CourierPrime'),
+    url('./assets/fonts/Courier_Prime/CourierPrime-BoldItalic.ttf') format('truetype');
+  font-weight: bold;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'CourierPrime';
+  src:
+    local('CourierPrime'),
+    url('./assets/fonts/Courier_Prime/CourierPrime-Italic.ttf') format('truetype');
+  font-style: italic;
+}
