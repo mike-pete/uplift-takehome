@@ -39,7 +39,6 @@ To make the development flow easier, we've added a Makefile with many useful tar
 - To list all available commands, either check the file or run `make help`.
 - If you want to pass additional arguments, for commands that allow this, you'll have to do the following: `make target-name ARGS='<any arguments>'`. For example, if you want to detach a container when running it, you'll have to do: `make python-start ARGS='--detach'`.
 
-
 ## Docker setup
 
 We think it's easier to complete the challenge using Docker. If you are familiar with Docker and already have it installed, you can skip to the specific challenge you are doing. Otherwise, below are some instructions on how to get Docker installed on your system.
@@ -140,7 +139,6 @@ The task is to build a simple card game. The designs are in Figma, you can see [
 - Node 16+ (tested on 18.12.1)
 - ~~Yarn 1+ (tested on 1.19.1)~~ the Docker build is using npm
 
-
 ### Getting Started with Docker
 
 ```console
@@ -175,7 +173,6 @@ Additionally, if you're on Windows, check out this tip for [yarn with husky on W
 ### Linting
 
 CI runs prettier and eslint. Configuring your editor/IDE appropriately will make it easier for you to ensure passing CI tests when you submit.
-
 
 ## License and sharing
 

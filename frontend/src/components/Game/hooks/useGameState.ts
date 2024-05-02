@@ -1,21 +1,12 @@
 import { useState } from 'react';
-import { suits, SuitType } from '../components/Card';
+import { suits, SuitType } from '../../Card';
 
 export type CardType = {
   value: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
   suit: SuitType;
 };
 
-type GameStateType = {
-  deck: CardType[];
-  newHandsDealt: number;
-};
-
-type ActionType = { type: 'deal' } | { type: 'reset' };
-
-const cardsToDeal = 5;
-
-const createDeck = (): CardType[] => {
+export const createDeck = (): CardType[] => {
   const deck: CardType[] = [];
   suits.forEach((suit) => {
     for (let value = 1; value <= 13; value++) {
@@ -25,32 +16,34 @@ const createDeck = (): CardType[] => {
   return deck;
 };
 
-const shuffleDeck = (deck: CardType[]): CardType[] => {
-  // Fisher–Yates shuffle
-  for (let index = deck.length - 1; index > 0; index--) {
+export const shuffleDeck = (deck: CardType[]): CardType[] => {
+  const shuffledDeck = [...deck];
+  for (let index = shuffledDeck.length - 1; index > 0; index--) {
     const randomIndex = Math.floor(Math.random() * (index + 1));
-    [deck[index], deck[randomIndex]] = [deck[randomIndex], deck[index]];
+    [shuffledDeck[index], shuffledDeck[randomIndex]] = [
+      shuffledDeck[randomIndex],
+      shuffledDeck[index],
+    ];
   }
-  return deck;
+  return shuffledDeck;
 };
 
-const useGameState = () => {
-  const [deck, setDeck] = useState<CardType[]>(shuffleDeck(createDeck()));
+const useGameState = (
+  initializeDeck: CardType[] | (() => CardType[]) = () => shuffleDeck(createDeck())
+) => {
+  const cardsToDeal = 5;
+  const [deck, setDeck] = useState<CardType[]>(initializeDeck);
   const [newHandsDealt, setNewHandsDealt] = useState(0);
 
   const reset = () => {
-    const deck = createDeck();
-    shuffleDeck(deck);
-    setDeck(deck);
+    setDeck(initializeDeck);
     setNewHandsDealt(0);
   };
 
   const deal = () =>
     setNewHandsDealt((prev) => {
-      if ((prev + 1) * cardsToDeal >= deck.length) {
-        return prev;
-      }
-      return prev + 1;
+      const allCardsDealt = (prev + 1) * cardsToDeal >= deck.length;
+      return allCardsDealt ? prev : prev + 1;
     });
 
   const visibleCards = deck.slice(newHandsDealt * cardsToDeal, (newHandsDealt + 1) * cardsToDeal);
@@ -64,12 +57,11 @@ const useGameState = () => {
     .filter((card) => card.value === 1).length;
 
   let status: 'playing' | 'won' | 'lost' = 'playing';
-  if (cardsLeft === 0) {
-    if (visibleCards.some((card) => card.value === 1)) {
-      status = 'won';
-    } else {
-      status = 'lost';
-    }
+
+  const allCardsDealt = cardsDealt >= deck.length;
+  if (allCardsDealt) {
+    const lastHandHasAce = visibleCards.some((card) => card.value === 1);
+    status = lastHandHasAce ? 'won' : 'lost';
   }
 
   return {

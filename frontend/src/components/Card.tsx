@@ -34,11 +34,13 @@ const Card: React.FC<{ value: number; suit: SuitType }> = ({ value, suit }) => {
   return (
     <div className="relative inline-flex select-none flex-col items-start rounded-2xl bg-white p-4 pb-2">
       <div className="flex flex-col items-center ">
-        <p className={`font-CourierPrime text-6xl font-bold ${textColor}`}>{cardValueLabel}</p>
-        <img className="h-7 w-7" src={cardSuitImage[suit]} alt={suit} />
+        <p className={`font-CourierPrime text-4xl font-bold md:text-6xl ${textColor}`}>
+          {cardValueLabel}
+        </p>
+        <img className="h-4 w-4 md:h-7 md:w-7" src={cardSuitImage[suit]} alt={suit} />
       </div>
-      <div className="relative -top-2 pl-8">
-        <img className="h-16 w-16" src={cardSuitImage[suit]} alt={suit} />
+      <div className="relative pl-4 -top-1 md:-top-2 md:pl-8">
+        <img className="h-10 w-10 md:h-16 md:w-16" src={cardSuitImage[suit]} alt={suit} />
       </div>
     </div>
   );
