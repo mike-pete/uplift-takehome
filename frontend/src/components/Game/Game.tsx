@@ -33,7 +33,10 @@ const Game = () => {
           <div
             className="animate-slide-in opacity-0"
             style={{ animationDelay: `${i * 50}ms` }}
-            key={`${card.value}${card.suit}${cardsLeft}`}
+            key={Math.random()}
+            // regarding the random key above:
+            // There's a chance that when the game is reset the freshly dealt cards will contain one or more cards that were dealt in the previous hand.
+            // Making the keys random ensures that even if that happens, the cards will still re-render and play their animation.
           >
             <Card value={card.value} suit={card.suit} />
           </div>
